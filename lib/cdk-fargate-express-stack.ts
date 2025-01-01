@@ -5,6 +5,9 @@ import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as logs from "aws-cdk-lib/aws-logs";
+
+import "dotenv/config";
+
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class CdkFargateExpressStack extends cdk.Stack {
@@ -19,9 +22,9 @@ export class CdkFargateExpressStack extends cdk.Stack {
     // });
 
     const vpc = new ec2.Vpc(this, "vpc", {
-      maxAzs: 2,
       ipAddresses: cdk.aws_ec2.IpAddresses.cidr("10.0.0.0/16"),
       natGateways: 0,
+      maxAzs: 2,
     });
 
     const ecsSg = new ec2.SecurityGroup(this, "ecs-sg", {
@@ -60,37 +63,37 @@ export class CdkFargateExpressStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    const cluster = new ecs.Cluster(this, "cluster", {
-      vpc: vpc,
-      clusterName: "ecs-fargate-cluster-express",
-      containerInsights: false,
-      enableFargateCapacityProviders: true,
-    });
+    if (true) {
+      const cluster = new ecs.Cluster(this, "cluster", {
+        vpc: vpc,
+        clusterName: "ecs-fargate-cluster-express",
+        containerInsights: false,
+        enableFargateCapacityProviders: true,
+      });
 
-    const taskDef = new ecs.FargateTaskDefinition(this, "taskDef", {
-      cpu: 256,
-      memoryLimitMiB: 512,
-      executionRole,
-    });
-    taskDef.addContainer("container", {
-      image: ecs.ContainerImage.fromRegistry(
-        "242201287677.dkr.ecr.ap-northeast-1.amazonaws.com/cdk-express:latest"
-      ),
-      logging: ecs.LogDriver.awsLogs({
-        streamPrefix: "ecs",
-        logGroup,
-      }),
-    });
+      const taskDef = new ecs.FargateTaskDefinition(this, "taskDef", {
+        cpu: 256,
+        memoryLimitMiB: 512,
+        executionRole,
+      });
+      taskDef.addContainer("container", {
+        image: ecs.ContainerImage.fromRegistry(process.env.ECR_REPO_URI || ""),
+        logging: ecs.LogDriver.awsLogs({
+          streamPrefix: "ecs",
+          logGroup,
+        }),
+      });
 
-    new ecs.FargateService(this, "service", {
-      cluster: cluster,
-      taskDefinition: taskDef,
-      desiredCount: 1,
-      securityGroups: [ecsSg],
-      assignPublicIp: true,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PUBLIC,
-      },
-    });
+      new ecs.FargateService(this, "service", {
+        cluster: cluster,
+        taskDefinition: taskDef,
+        desiredCount: 1,
+        securityGroups: [ecsSg],
+        assignPublicIp: true,
+        vpcSubnets: {
+          subnetType: ec2.SubnetType.PUBLIC,
+        },
+      });
+    }
   }
 }
